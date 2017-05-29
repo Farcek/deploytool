@@ -1,32 +1,30 @@
 {
-    "name": "deploytool",
-    "version": "1.0.0",
-    "description": "",
-    "main": "./lib/index.js",
-    "typings": "./lib/index.d.js",
-    "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
-    },
-    "bin": {
-        "deploytool": "./lib/cli.js"
-    },
-    "author": "",
-    "license": "ISC",
-    "dependencies": {
-        "async": "^2.4.1",
-        "bluebird": "^3.5.0",
-        "colors": "^1.1.2",
-        "find-root": "^1.0.0",
-        "glob": "^7.1.2",
-        "node-cmd": "^3.0.0",
-        "progress": "^2.0.0",
-        "promise-map-series": "^0.2.3",
-        "ssh-exec": "^2.0.0",
-        "ssh2-sftp-client": "^1.1.0",
-        "upath": "^1.0.0",
-        "yargs": "^8.0.1"
-    },
-    "devDependencies": {
-        "@types/node": "^7.0.22"
-    }
+  "name": "deploytool",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./lib/index.js",
+  "typings": "./lib/index.d.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "deploytool": "./lib/cli.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bluebird": "^3.5.0",
+    "colors": "^1.1.2",
+    "find-root": "^1.0.0",
+    "glob": "^7.1.2",
+    "node-cmd": "^3.0.0",
+    "progress": "^2.0.0",
+    "ssh-exec": "^2.0.0",
+    "ssh2-sftp-client": "^1.1.0",
+    "upath": "^1.0.0",
+    "yargs": "^8.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^7.0.22"
+  }
 }
