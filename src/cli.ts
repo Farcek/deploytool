@@ -52,6 +52,7 @@ var bar = null;
 dt.on('cmd:start', (cmd, where, stream) => {
   console.log()
   console.log(colors.grey(where + '>'), colors.green(cmd))
+  console.log(colors.grey('---------------------------------------------------------------------------'))
   stream && stream.pipe(process.stdout);
 });
 
@@ -78,9 +79,10 @@ dt.on('copy:end', () => {
   });
 });
 
+console.time('run time')
 dt.run()
   .then(() => {
-    console.log('success done')
+    console.timeEnd('run time');
   })
   .catch((err: any) => {
     console.log('error', err)

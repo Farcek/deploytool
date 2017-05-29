@@ -24,22 +24,29 @@ deploytool --config deploy-config.js
 ```javascript
 // deploy-config.js
 
+var serverRoot = '/foo/baar/server-path';
+var localRoot = __dirname +'/build';
+
+
 module.exports = {
     host: '',
     port: 22, // default 22
     username: '',
     password: '',
-    serverRoot: '/foo/baar/server-path',
-    localRoot:  __dirname +'/build',
+    serverRoot: serverRoot,
+    localRoot:  localRoot,
     commands: {
         before: [function(tool) {
             var clearLocal = tool.local('rm -rf '+ __dirname +'/build' );
             var build = tool.local('npm build');
             var clearRemote = tool.remote('rm -rf /foo/baar/server-path');
-            return tool.mapSeries([clearLocal,build,clearRemote] );
+            return [clearLocal,build,clearRemote] ;
         }],
         after: [function(tool) {
-            return tool.remote('pm2 reload all');
+            var cd = "cd "+ serverRoot + ' && ';
+            var npm = tool.remote(cd+' npm install');
+            var reload = tool.remote(cd+ 'pm2 reload all');
+            return [npm,reload]
         }]
     }
 };
