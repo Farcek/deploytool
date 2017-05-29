@@ -5,7 +5,7 @@ Node.js deploy tool
 ## install
 
 ```javascript
-npm install deplytool
+npm install deploy-tool
 
 ```
 
@@ -13,7 +13,7 @@ npm install deplytool
 
 ```javascript
 
-deploytool --config deploy-config.js
+deploy-tool --config deploy-config.js
 // -- config default value deploy.js
 // deploy.js location with package.json
 
@@ -52,6 +52,6 @@ module.exports = {
 };
 
 // usage
-// deploytool --config deploy-config.js
+// deploy-tool --config deploy-config.js
 
 ```
