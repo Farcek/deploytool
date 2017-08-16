@@ -5,11 +5,10 @@ import { EventEmitter } from 'events';
 const Client = require('ssh2-sftp-client');
 const glob = require('glob');
 const bluebird = require('bluebird');
-const remoteShell = require('ssh-exec');
 const localShell = require('node-cmd');
 const upath = require('upath');
-
-
+const ssh2 = require('ssh2');
+ 
 
 export const EVENTS = {
     CmdStart: 'cmd:start',
@@ -32,6 +31,7 @@ export interface IOptions {
     password: string
     serverRoot: string
     localRoot: string
+    patterns?: string | string[]
     commands?: {
         before?: (tool: IToolParam) => Function | Function[]
         after?: (tool: IToolParam) => Function | Function[]
@@ -49,6 +49,9 @@ export class DeplyTool extends EventEmitter {
     serverRoot() {
         return this.option.serverRoot
     }
+    patterns(): string[] {
+        return Array.isArray(this.option.patterns) ? this.option.patterns : (this.option.patterns ? [this.option.patterns] : ['**/*.*'])
+    }
     async run() {
         await this.commandBefore();
 
@@ -65,17 +68,22 @@ export class DeplyTool extends EventEmitter {
             let localRoot = this.localRoot();
             let serverRoot = this.serverRoot();
 
-            let files: string[] = glob.sync(`**/*.*`, {
-                cwd: localRoot
-            })
-                .filter(file => {
-                    var stat = fs.statSync(path.join(localRoot, file));
-                    return stat && stat.isFile();
+            let files: string[] = [];
+
+            for (var p of this.patterns()) {
+                var _files = glob.sync(p, {
+                    cwd: localRoot
                 })
-                ;
+                    .filter(file => {
+                        var stat = fs.statSync(path.join(localRoot, file));
+                        return stat && stat.isFile();
+                    });
+                files = files.concat(_files);
+            }
+
+
 
             this.emit(EVENTS.CopyInit, files.length, serverRoot, localRoot);
-
 
             await bluebird.mapSeries(files, async (file: string, index: number) => {
                 this.emit(EVENTS.CopyProcess, file, index + 1, files.length)
@@ -94,7 +102,6 @@ export class DeplyTool extends EventEmitter {
 
         }
         catch (err) {
-
             throw err;
         }
         finally {
@@ -113,7 +120,7 @@ export class DeplyTool extends EventEmitter {
     private localFn(cmd: string) {
         return () => {
             return new Promise((resolve, reject) => {
-                
+
                 var processRef = localShell.get(cmd, (err, data, stderr) => {
                     if (err) {
                         return reject(err);
@@ -130,18 +137,57 @@ export class DeplyTool extends EventEmitter {
                 })
         }
     }
+    // private remoteFn1(cmd: string) {
+    //     return () => {
+    //         return new Promise((resolve, reject) => {
+    //             var pipe = remoteShell(cmd + '\nexit\n', {
+    //                 user: this.option.username,
+    //                 host: this.option.host,
+    //                 password: this.option.password,
+    //                 port: this.option.port || 22,
+    //                 readyTimeout: 99999
+    //             });
+
+    //             console.log('v11')
+
+    //             pipe.on('error', (err) => setTimeout(() => reject(err), 500));
+    //             pipe.on('finish', () => setTimeout(resolve, 500));
+    //             this.emit(EVENTS.CmdStart, cmd, 'remote', pipe);
+    //         })
+    //             .then(() => {
+    //                 this.emit(EVENTS.CmdEnd, cmd, 'remote');
+    //             })
+    //     }
+    // }
+
     private remoteFn(cmd: string) {
         return () => {
             return new Promise((resolve, reject) => {
-                var pipe = remoteShell(cmd, {
-                    user: this.option.username,
-                    host: this.option.host,
-                    password: this.option.password
-                });
 
-                pipe.on('error', (err) => setTimeout(() => reject(err), 500));
-                pipe.on('finish', () => setTimeout(resolve, 500));
-                this.emit(EVENTS.CmdStart, cmd, 'remote', pipe);
+
+                var conn = new ssh2.Client();
+                conn.on('ready', () => {
+
+                    conn
+                        .shell((err, stream) => {
+                            if (err) throw err;
+                            stream
+                                .on('close', function () {
+                                    conn.end();
+                                    setTimeout(resolve, 500)
+                                })
+                            stream.on('error', (err) => setTimeout(() => reject(err), 500));
+                            this.emit(EVENTS.CmdStart, cmd, 'remote', stream);
+                            stream.end(cmd + '\nexit\n');
+                        });
+                })
+                    .connect({
+                        user: this.option.username,
+                        host: this.option.host,
+                        password: this.option.password,
+                        port: this.option.port,
+                        readyTimeout: 99999
+                    });
             })
                 .then(() => {
                     this.emit(EVENTS.CmdEnd, cmd, 'remote');

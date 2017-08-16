@@ -20,6 +20,7 @@ export interface IOptions {
     password: string;
     serverRoot: string;
     localRoot: string;
+    patterns?: string | string[];
     commands?: {
         before?: (tool: IToolParam) => Function | Function[];
         after?: (tool: IToolParam) => Function | Function[];
@@ -31,6 +32,7 @@ export declare class DeplyTool extends EventEmitter {
     constructor(option: IOptions);
     localRoot(): string;
     serverRoot(): string;
+    patterns(): string[];
     run(): Promise<void>;
     private localFn(cmd);
     private remoteFn(cmd);

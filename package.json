@@ -1,6 +1,6 @@
 {
     "name": "deploy-tool",
-    "version": "1.0.4",
+    "version": "1.1.2",
     "description": "nodejs deploy tool",
     "main": "./lib/index.js",
     "typings": "./lib/index.d.js",
@@ -24,7 +24,6 @@
         "glob": "^7.1.2",
         "node-cmd": "^3.0.0",
         "progress": "^2.0.0",
-        "ssh-exec": "^2.0.0",
         "ssh2-sftp-client": "^1.1.0",
         "upath": "^1.0.0",
         "yargs": "^8.0.1"

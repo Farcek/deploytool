@@ -35,19 +35,25 @@ module.exports = {
     password: '',
     serverRoot: serverRoot,
     localRoot:  localRoot,
+    patterns: [ // gulp patterns
+        'config/production/**/*.*', 'config/index.js',
+        'core/package.json', 'core/build/**/*.*',
+        'web/package.json', 'web/dist/**/*.*',
+        'pm2.eco.json'
+    ],
     commands: {
-        before: [function(tool) {
+        before: function(tool) {
             var clearLocal = tool.local('rm -rf '+ __dirname +'/build' );
             var build = tool.local('npm build');
             var clearRemote = tool.remote('rm -rf /foo/baar/server-path');
             return [clearLocal,build,clearRemote] ;
-        }],
-        after: [function(tool) {
+        },
+        after: function(tool) {
             var cd = "cd "+ serverRoot + ' && ';
             var npm = tool.remote(cd+' npm install');
             var reload = tool.remote(cd+ 'pm2 reload all');
             return [npm,reload]
-        }]
+        }
     }
 };
 
