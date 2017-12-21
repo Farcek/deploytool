@@ -6,7 +6,8 @@
     "typings": "./lib/index.d.js",
 
     "bin": {
-        "deploy-tool": "./lib/cli.js"
+        "deploy-tool": "./lib/cli.js",
+        "deploy": "./lib/cli.js"
     },
     "repository": {
         "type": "git",
