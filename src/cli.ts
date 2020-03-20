@@ -4,32 +4,34 @@ import { DeplyTool, EVENTS } from './index';
 import * as path from 'path';
 import * as fs from 'fs';
 
-
 const ProgressBar = require('progress');
 const colors = require('colors');
-const findRoot = require('find-root');
-const argv = require('yargs')
-  .usage('Usage: $0 [options]')
-
-  .alias('c', 'config')
-  .describe('c', 'configration file name')
-  .help('h')
-  .alias('h', 'help')
-  .argv
-  ;
 
 
-
-const projectRoot = findRoot(process.cwd());
-const configFile = ((argv) => {
-  if (argv.config) {
-    if (path.extname(argv.config)) return argv.config;
-    return argv.config + ".js"
+var ArgumentParser = require('argparse').ArgumentParser;
+var parser = new ArgumentParser({
+  addHelp: true,
+  description: 'deployment tool.  files update. remote shell. local shell.'
+});
+parser.addArgument(
+  '--config',
+  {
+    required: true,
+    help: 'configure file path'
   }
-  return 'deploy.js';
-})(argv);
+);
+parser.addArgument(
+  '--mode',
+  {
+    help: 'runing mode param',
+    defaultValue: 'update'
+  }
+);
 
-const configPath = path.resolve(projectRoot, configFile);
+const args = parser.parseArgs();
+
+
+const configPath = path.resolve(args.config);
 
 if (fs.existsSync(configPath)) {
   console.log()
@@ -41,40 +43,39 @@ if (fs.existsSync(configPath)) {
 }
 
 
-let options = require(configPath);
+const options = require(configPath);
+const dt = new DeplyTool(options, args.mode);
 
+const $ = { bar: null };
 
-
-const dt = new DeplyTool(options);
-
-var bar = null;
-
-dt.on('cmd:start', (cmd, where, stream) => {
+dt.on(EVENTS.CmdStart, (cmd, where, stream) => {
   console.log()
   console.log(colors.grey(where + '>'), colors.green(cmd))
   console.log(colors.grey('---------------------------------------------------------------------------'))
-  stream && stream.pipe(process.stdout);
+  // stream && stream.pipe(process.stdout);
+  stream && stream.on('data', data => console.log(data.toString()));
 });
 
-dt.on('cmd:end', (cmd) => {
+dt.on(EVENTS.CmdEnd, (cmd) => {
+  console.log('\n')
   console.log('\n')
 });
 
-dt.on('copy:init', (total) => {
+dt.on(EVENTS.CopyInit, (total) => {
   console.log(colors.grey('copy >'), colors.green('total copy files:'), total)
-  bar = new ProgressBar('copy [:bar] :percent :file', {
+  $.bar = new ProgressBar('copy [:bar] :percent :file', {
     total: total + 1, width: 15
   });
 });
 
-dt.on('copy:process', (file, index, total) => {
-  bar && bar.tick({
+dt.on(EVENTS.CopyProcess, (file, index, total) => {
+  $.bar && $.bar.tick({
     file
   });
 });
 
-dt.on('copy:end', () => {
-  bar && bar.tick({
+dt.on(EVENTS.CopyEnd, () => {
+  $.bar && $.bar.tick({
     file: ''
   });
 });
@@ -85,7 +86,8 @@ dt.run()
     console.timeEnd('run time');
   })
   .catch((err: any) => {
-    console.log('error', err)
+    console.log(colors.red(' ----- Error ----'))
+    console.log(err)
   });
 
 

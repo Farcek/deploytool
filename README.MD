@@ -41,6 +41,13 @@ module.exports = {
         'web/package.json', 'web/dist/**/*.*',
         'pm2.eco.json'
     ],
+
+    after : [
+        `cd ${serverRoot}`,
+        `npm install`,
+        `pm2 reload`,
+    ]
+
     commands: {
         before: function(tool) {
             var clearLocal = tool.local('rm -rf '+ __dirname +'/build' );
