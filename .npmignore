@@ -1,4 +1,7 @@
 /src
 /node_modules
 /.vscode
-/sample.js
+/deploy.test.js
+/test
+/package-lock.json
+/tsconfig.json

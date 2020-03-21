@@ -1,6 +1,6 @@
 {
     "name": "deploy-tool",
-    "version": "1.2.1",
+    "version": "1.2.0",
     "description": "nodejs deploy tool",
     "main": "./lib/index.js",
     "typings": "./lib/index.d.js",
@@ -10,8 +10,10 @@
     },
     "scripts": {
         "build": "tsc -p tsconfig.json",
+        "prenpm2push": "npm run build",
+        "npm2push": "npm publish",
         "pretest": "npm run build",
-        "test": "node lib/cli.js --config=test/deploy.js"
+        "test": "node lib/cli.js --config=deploy.test.js"
     },
     "repository": {
         "type": "git",
@@ -28,12 +30,11 @@
     "license": "ISC",
     "dependencies": {
         "argparse": "^1.0.10",
-        "colors": "^1.1.2",
-        "glob": "^7.1.2",
-        "node-cmd": "^3.0.0",
-        "progress": "^2.0.0",
+        "colors": "^1.4.0",
+        "glob": "^7.1.6",
+        "progress": "^2.0.3",
         "shelljs": "^0.8.3",
-        "ssh2-sftp-client": "^1.1.0",
+        "ssh2-sftp-client": "^5.1.2",
         "upath": "^1.0.0"
     },
     "devDependencies": {

@@ -7,8 +7,8 @@ import glob = require('glob');
 import shell = require('shelljs');
 import upath = require('upath');
 import ssh2 = require('ssh2');
+import { Writable, PassThrough } from 'stream';
 
-const { PassThrough, Writable } = require('stream');
 
 export const EVENTS = {
     CmdStart: 'cmd:start',
@@ -43,8 +43,8 @@ export interface IOptions {
     // gulp pattern
     patterns?: string | string[];
 
-    before?: (tool: IToolParam) => void;
-    after?: (tool: IToolParam) => void;
+    before?: (shell: IToolParam, runMode: string) => void;
+    after?: (shell: IToolParam, runMode: string) => void;
 }
 export class DeplyTool extends EventEmitter {
     constructor(private option: IOptions, private runMode: string) {
@@ -99,11 +99,11 @@ export class DeplyTool extends EventEmitter {
 
                 let dir = path.dirname(to);
 
-                to = upath.toUnix(to);
-                dir = upath.toUnix(dir);
+                let to1 = upath.normalize(to);
+                let dir1 = upath.normalize(dir);
 
-                await sftp.mkdir(dir, true);
-                await sftp.put(from, to);
+                await sftp.mkdir(dir1, true);
+                await sftp.put(from, to1);
             }
         }
         catch (err) {
@@ -118,54 +118,70 @@ export class DeplyTool extends EventEmitter {
         this.emit(EVENTS.CopyEnd);
     }
 
-    private remoteCall(conn: ssh2.Client, outStream: any, cmd: string) {
-        return new Promise((resolve, reject) => {
-            conn.exec(cmd, (err, stream) => {
+    // private remoteCall(conn: ssh2.Client, outStream: Writable, cmd: string) {
+    //     return new Promise((resolve, reject) => {
+    //         outStream.write(`exec >> ${cmd}\n`);
+    //         conn.exec(cmd, (err, stream) => {
 
-                if (err) {
-                    return reject(err);
-                }
+    //             if (err) {
+    //                 return reject(err);
+    //             }
 
-                // stream.pipe(outStream)
-                stream.on('close', (code, signal) => {
-                    if (code == 0) {
-                        resolve()
-                    } else {
-                        reject(new Error(`exit code is "${code}". cmd = ${cmd}`))
-                    }
-                });
-                stream.stderr.on('data', (a) => console.log('stream.stderr.data', a.toString()))
-                stream.on('data', (data) => outStream.write(data));
-                stream.on('error', (err) => reject(err));
-            });
-        })
-    }
+    //             stream.pipe(outStream, { end: false });
+    //             stream.on('close', (code, signal) => {
 
-    private async remoteLoop(conn: ssh2.Client, outStream: any, cmds: string[]) {
-        for (let cmd of cmds) {
-            await this.remoteCall(conn, outStream, cmd)
-        }
-    }
+    //                 if (code == 0) {
+    //                     resolve()
+    //                 } else {
+    //                     reject(new Error(`exit code is "${code}". signal=${signal}. cmd = ${cmd}`))
+    //                 }
+    //             });
+    //         });
+    //     })
+    // }
+
+    // private async remoteLoop(conn: ssh2.Client, outStream: Writable, cmds: string[]) {
+    //     for (let cmd of cmds) {
+    //         await this.remoteCall(conn, outStream, cmd)
+    //     }
+    // }
 
     private remoteFn(cmds: string[]) {
         return new Promise((resolve, reject) => {
             var conn = new ssh2.Client();
+            const outstream = new PassThrough();
             conn.on('ready', () => {
                 let serverRoot = this.serverRoot();
-                const outstream = new PassThrough();
+
                 this.emit(EVENTS.CmdStart, cmds, 'remote', outstream);
 
-                Promise.resolve()
-                    .then(() => this.remoteCall(conn, outstream, `cd ${serverRoot}`))
-                    .then(() => this.remoteLoop(conn, outstream, cmds))
-                    .then(() => this.remoteCall(conn, outstream, `exit`))
-                    .then(resolve)
-                    .catch(reject)
-                    .then(() => conn.end())
-                    ;
+                conn.shell((err, stream) => {
 
+                    if (err) {
+                        return reject(err);
+                    }
+
+                    stream.pipe(outstream, { end: false });
+                    stream.on('close', (code, signal) => {
+
+                        setTimeout(() => {
+                            conn.end();
+                            if (code == 0) {
+                                resolve()
+                            } else {
+                                reject(new Error(`exit code is "${code}". signal=${signal}. cmd = ${cmds}`))
+                            }
+                        }, 200)
+                    });
+                    stream.write(`cd ${serverRoot}\n`);
+                    for (let cmd of cmds) {
+                        stream.write(`${cmd}\n`);
+                    }
+                    stream.end('exit\n');
+                });
             });
 
+            conn.on('error', reject);
             conn.connect(this.option.connection);
         })
             .then(() => {
@@ -196,19 +212,15 @@ export class DeplyTool extends EventEmitter {
     private localFn(cmds: string[]) {
         return new Promise((resolve, reject) => {
             const localRoot = this.localRoot();
-
             const stream = new PassThrough();
-            this.emit(EVENTS.CmdStart, cmds[0], 'local', stream);
+            this.emit(EVENTS.CmdStart, cmds, 'local', stream);
 
             Promise.resolve()
-                .then(() => this.localCall(shell, stream, `cd ${localRoot}`))
-
+                // .then(() => this.localCall(shell, stream, `cd ${localRoot}`))
                 .then(() => this.localLoop(shell, stream, cmds))
-                .then(() => this.localCall(shell, stream, `exit`))
-
-
-
-
+                // .then(() => this.localCall(shell, stream, `exit`))
+                .then(resolve)
+                .catch(reject)
         })
             .then(() => {
                 this.emit(EVENTS.CmdEnd, cmds, 'local');
@@ -217,7 +229,7 @@ export class DeplyTool extends EventEmitter {
 
 
 
-    private async exec(command: (tool: IToolParam) => void) {
+    private async exec(command: (tool: IToolParam, runMode: string) => void) {
         const commands: Array<() => Promise<void>> = [];
         const shell: IToolParam = {
             local: (cmd: string | string[]) => {
@@ -234,7 +246,7 @@ export class DeplyTool extends EventEmitter {
             }
         };
 
-        command(shell);
+        command(shell, this.runMode);
 
         for (let cmd of commands) {
             await cmd();
@@ -253,26 +265,5 @@ export class DeplyTool extends EventEmitter {
             this.emit(EVENTS.CommandsAfter);
             await this.exec(this.option.after);
         }
-    }
-}
-
-let s: IOptions = {
-
-    // ssh2 connection config. 
-    connection: {
-        host: '119.40.96.80',
-        port: 22,
-        username: 'node8',
-        password: 'ftP0$$'
-    },
-    serverRoot: '/home/node8/ttest',
-    localRoot: __dirname,
-    patterns: '**/*',
-
-    before: (tool) => {
-        // tool.local('ls -la')
-        // tool.local('node -v')
-        tool.remote(['node -v'])
-        tool.remote(['ls -xq d -dada'])
     }
 }

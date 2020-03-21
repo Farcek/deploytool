@@ -2,3 +2,5 @@
 .vscode/*
 /sample.js
 /package-lock.json
+/lib/
+/deploy.test.js

@@ -1,6 +1,10 @@
 # deploytool
 
-Node.js deploy tool
+Node.js deploy tool.
+
+- sftp upload to remoting server
+- upload before commands
+- upload after commands
 
 ## install
 
@@ -14,8 +18,13 @@ npm install deploy-tool
 ```javascript
 
 deploy-tool --config deploy-config.js
-// -- config default value deploy.js
-// deploy.js location with package.json
+// or
+deploy --config deploy-config.js --mode=install
+
+// --config :
+// --mode : runing mode pass to config. 
+//          default value "update".
+
 
 ```
 
@@ -24,47 +33,68 @@ deploy-tool --config deploy-config.js
 ```javascript
 // deploy-config.js
 
-var serverRoot = '/foo/baar/server-path';
-var localRoot = __dirname +'/build';
-
-
 module.exports = {
-    host: '',
-    port: 22, // default 22
-    username: '',
-    password: '',
-    serverRoot: serverRoot,
-    localRoot:  localRoot,
-    patterns: [ // gulp patterns
-        'config/production/**/*.*', 'config/index.js',
-        'core/package.json', 'core/build/**/*.*',
-        'web/package.json', 'web/dist/**/*.*',
+    // ssh2 connection config. 
+    // https://www.npmjs.com/package/ssh2
+    connection: {
+        host: 'xxx',
+        port: 22,
+        username: 'xxx',
+        password: 'xxx',
+        // privateKey: require('fs').readFileSync('/here/is/my/key')
+        // passphrase : 'xxx'
+    },
+
+    serverRoot: '/home/node8/app-root',
+    localRoot: __dirname,
+
+    // upload files. gulp pattern
+    patterns: [
+        'lib/**/*',
+        'dist/**/*',
+        'package.json',        
         'pm2.eco.json'
+        // more files
     ],
 
-    after : [
-        `cd ${serverRoot}`,
-        `npm install`,
-        `pm2 reload`,
-    ]
+    // uploading before. commands
+    before: (shell, mode) => {
+        shell.local('npm version patch');
 
-    commands: {
-        before: function(tool) {
-            var clearLocal = tool.local('rm -rf '+ __dirname +'/build' );
-            var build = tool.local('npm build');
-            var clearRemote = tool.remote('rm -rf /foo/baar/server-path');
-            return [clearLocal,build,clearRemote] ;
-        },
-        after: function(tool) {
-            var cd = "cd "+ serverRoot + ' && ';
-            var npm = tool.remote(cd+' npm install');
-            var reload = tool.remote(cd+ 'pm2 reload all');
-            return [npm,reload]
+        if(mode == 'install') {
+            shell.remote('mkdir -p /home/node8/app-root');
         }
+        if(mode == 'update') {
+            shell.remote([
+                'rm -rf /home/node8/app-root/lib/*.*',
+                'rm -rf /home/node8/app-root/dist/*.*',
+            ]);
+        }
+
+        /** it is working  **/
+        // shell.remote([
+        //     'echo $(pwd)',
+        //     'cd ..',
+        //     'echo $(pwd)',
+        // ]);
+
+        // shell.remote('npm -v')
+        // shell.remote('node -v')
+        // shell.local('npm -v')
+        // shell.local('node -v')
+        // shell.local('echo foo bar')
+    },
+
+    // uploading after. commands
+    after: (shell, mode) => {
+        shell.remote('npm i --production');
+        shell.remote('npm run db:up');
+        shell.local('pm2 reload all')
+
+        // !!!!!  local shell "cd" not run.  not use "cd"
+        // tool.local('echo %cd%')
+        // tool.local('cd ..')
+        // tool.local('echo %cd%')
     }
 };
-
-// usage
-// deploy-tool --config deploy-config.js
-
 ```
